@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MMBS POS (Hybrid)</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--g:#2e9e5b;--gd:#238049;--ink:#222;--mute:#80868b;--line:#e4e6e8;--bg:#f1f3f4;--bad:#d93025;--warn:#f9a825}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans Myanmar","Padauk",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:6px;padding:.5rem 1rem;background:var(--g);color:#fff;font-weight:600}
+button:hover{background:var(--gd)}
+button.flat{background:transparent;color:var(--g)}
+button.flat:hover{background:#2e9e5b14}
+button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+button.ghost:hover{background:var(--bg)}
+button.red{background:var(--bad)}
+button:disabled{opacity:.4;cursor:not-allowed}
+input,select{border:1px solid var(--line);border-radius:6px;padding:.5rem .7rem;background:#fff;width:100%;outline:none}
+input:focus,select:focus{border-color:var(--g)}
+:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.top{height:56px;background:var(--g);color:#fff;display:flex;align-items:center;gap:.4rem;padding:0 .6rem;flex-shrink:0}
+.top h1{font-size:1.15rem;font-weight:600;margin-left:.3rem}
+.top .ic{background:transparent;font-size:1.4rem;padding:.2rem .7rem}
+.top .ic:hover{background:#ffffff22}
+#syncPill{margin-left:auto;font-size:.75rem;padding:.15rem .6rem;border-radius:99px;background:#ffffff33;display:flex;align-items:center;gap:.3rem;cursor:pointer}
+#syncPill.ok{background:#ffffff33}
+#syncPill.syncing{background:#ffe08233}
+#syncPill.off{background:#ef9a9a33}
+#syncPill.err{background:#ef5350aa}
+#scrim{position:fixed;inset:0;background:#0006;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+#scrim.on{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;bottom:0;left:0;width:270px;background:#fff;z-index:40;transform:translateX(-100%);transition:transform .22s;display:flex;flex-direction:column}
+#drawer.on{transform:none}
+#drawer .brand{background:var(--g);color:#fff;padding:1.2rem 1.2rem 1rem}
+#drawer .brand b{font-size:1.5rem;font-weight:800;letter-spacing:.04em;display:block}
+#drawer .brand small{display:block;opacity:.85;word-break:break-all}
+#drawer nav{flex:1}
+#drawer nav button{display:block;width:100%;text-align:left;background:transparent;color:var(--ink);border-radius:0;padding:.85rem 1.2rem;font-weight:400}
+#drawer nav button.on{background:#2e9e5b18;color:var(--gd);font-weight:600}
+#drawer nav button:hover{background:var(--bg)}
+#drawer .out{margin:1rem}
+main{flex:1;min-height:0;position:relative}
+.view{display:none;position:absolute;inset:0}
+.view.on{display:flex}
+#v-sales{background:var(--bg)}
+.catalog{flex:1;display:flex;flex-direction:column;min-width:0}
+.tools{display:flex;gap:.6rem;padding:.7rem;background:#fff;border-bottom:1px solid var(--line)}
+.tools select{max-width:200px}
+.tiles{flex:1;overflow:auto;padding:.7rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.6rem;align-content:start}
+.tile{position:relative;height:104px;border-radius:8px;color:#fff;text-align:left;padding:.55rem .65rem;display:flex;flex-direction:column;justify-content:flex-end;font-weight:600;line-height:1.45;overflow:hidden}
+.tile:hover{filter:brightness(.93)}
+.tile:active{transform:scale(.97)}
+.tile small{font-weight:400;opacity:.9}
+.tile .st{position:absolute;top:.4rem;right:.5rem;font-size:.75rem;background:#0003;border-radius:99px;padding:0 .5rem;font-weight:600}
+.tile:disabled{opacity:.35}
+.empty{color:var(--mute);padding:2rem;text-align:center;grid-column:1/-1}
+.ticket{width:360px;background:#fff;border-left:1px solid var(--line);display:flex;flex-direction:column}
+.thead{display:flex;justify-content:space-between;align-items:center;padding:.7rem 1rem;border-bottom:1px solid var(--line)}
+.thead b{font-size:1.05rem}
+.tlist{flex:1;overflow:auto}
+.tr{display:flex;align-items:center;gap:.5rem;padding:.6rem 1rem;border-bottom:1px solid var(--line)}
+.tr .n{flex:1;min-width:0}
+.tr small{color:var(--mute);display:block}
+.qty{display:flex;align-items:center;gap:.3rem}
+.qty button{width:28px;height:28px;padding:0;border-radius:50%;background:var(--bg);color:var(--ink);font-size:1.1rem;line-height:1}
+.qty button:hover{background:var(--line)}
+.qty span{min-width:1.3rem;text-align:center;font-weight:600}
+.tr .amt{min-width:78px;text-align:right}
+.tfoot{padding:.7rem 1rem 1rem;border-top:1px solid var(--line)}
+.sum{display:flex;justify-content:space-between;color:var(--mute);font-size:.9rem}
+.charge{width:100%;margin-top:.6rem;padding:.9rem;font-size:1.15rem;border-radius:8px}
+.cartBar{display:none}
+.page{flex:1;overflow:auto;max-width:820px;margin:0 auto;width:100%;padding:1rem}
+.row{display:flex;align-items:center;gap:.8rem;background:#fff;border-bottom:1px solid var(--line);padding:.7rem 1rem;cursor:pointer;text-align:left;width:100%;color:var(--ink);border-radius:0;font-weight:400}
+.row:hover{background:#fafafa}
+.row .grow{flex:1;min-width:0}
+.row small{display:block;color:var(--mute)}
+.dot{width:36px;height:36px;border-radius:8px;flex-shrink:0}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.day{color:var(--mute);font-size:.85rem;font-weight:600;padding:.8rem 1rem .3rem}
+.fab{position:absolute;right:1.2rem;bottom:1.2rem;width:56px;height:56px;border-radius:50%;font-size:1.8rem;padding:0;box-shadow:0 3px 8px #0003}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:1rem 0}
+.stats div{background:#fff;border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;color:var(--mute);font-size:.9rem}
+.stats b{display:block;font-size:1.3rem;color:var(--ink)}
+.range{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.range input{width:auto}
+.field{margin-bottom:.9rem}
+.field label{display:block;font-size:.85rem;color:var(--mute)}
+.colors{display:flex;gap:.4rem;flex-wrap:wrap}
+.colors i{width:30px;height:30px;border-radius:50%;cursor:pointer;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.colors i.on{box-shadow:0 0 0 2px var(--ink)}
+#login{position:fixed;inset:0;background:var(--g);z-index:100;display:none;align-items:center;justify-content:center;padding:1rem}
+#login.on{display:flex}
+#login form{background:#fff;border-radius:14px;padding:1.6rem;width:min(94vw,360px)}
+#login h2{font-size:1.8rem;font-weight:800;letter-spacing:.04em;text-align:center}
+#login p{text-align:center;color:var(--mute);margin-bottom:1.2rem}
+#login .field{margin-bottom:.8rem}
+#loginErr{color:var(--bad);font-size:.9rem;min-height:1.4rem}
+dialog{margin:auto;border:0;border-radius:12px;padding:1.3rem;width:min(94vw,390px);max-height:92dvh;overflow:auto}
+dialog::backdrop{background:#0007}
+dialog h3{font-size:1.1rem;margin-bottom:.8rem}
+.big{font-size:2.2rem;font-weight:800;text-align:center;margin:.2rem 0 1rem}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:.3rem;margin-bottom:.8rem}
+.seg button{padding:.4rem .2rem;font-size:.85rem;background:#fff;color:var(--ink);border:1px solid var(--line)}
+.seg button.on{background:var(--g);color:#fff;border-color:var(--g)}
+.quick{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0}
+.quick button{flex:1;min-width:30%}
+.acts{display:flex;gap:.5rem;margin-top:1rem}
+.acts button{flex:1}
+.rc{font-family:ui-monospace,Menlo,monospace;font-size:.85rem}
+.rc .l{display:flex;justify-content:space-between;gap:.5rem;padding:.1rem 0}
+.rc .c{text-align:center}
+.rc hr{border:0;border-top:1px dashed #aaa;margin:.5rem 0}
+.badge{display:inline-block;background:#2e9e5b22;color:var(--gd);border-radius:99px;padding:0 .55rem;font-size:.75rem;font-weight:600;margin-left:.3rem}
+@media(max-width:820px){
+  #v-sales{flex-direction:column}
+  .ticket{position:fixed;left:0;right:0;bottom:0;width:auto;height:78dvh;border-radius:14px 14px 0 0;box-shadow:0 -4px 14px #0003;transform:translateY(100%);transition:transform .22s;z-index:20}
+  .ticket.on{transform:none}
+  .cartBar{display:flex;justify-content:space-between;align-items:center;width:100%;border-radius:0;padding:1rem 1.2rem;font-size:1.05rem}
+  .stats{grid-template-columns:1fr}
+}
+@page{size:80mm auto;margin:0}
+@media print{
+  html,body{width:80mm;height:auto;overflow:visible;background:#fff}
+  body *{visibility:hidden}
+  #rc,#rc *{visibility:visible}
+  #rc{position:absolute;left:0;top:0;width:72mm;padding:4mm;font-size:12px}
+  .noprint{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form id="lf">
+    <h2>MMBS</h2><p>ဝင်ရောက်ရန်</p>
+    <div class="field"><label>အီးမေးလ်</label><input id="lEmail" type="email" autocomplete="username" required></div>
+    <div class="field"><label>စကားဝှက်</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+    <div id="loginErr"></div>
+    <button style="width:100%;padding:.8rem" id="lBtn">ဝင်မည်</button>
+    <p style="margin-top:.8rem;font-size:.8rem;color:var(--mute);text-align:center">တစ်ခါဝင်ပြီးရင် offline မှာလည်း ပြန်ဝင်လို့ရပါမယ်</p>
+  </form>
+</div>
+
+<header class="top">
+  <button class="ic" id="menuBtn" aria-label="menu">☰</button>
+  <h1 id="title">အရောင်း</h1>
+  <span id="syncPill" title="Sync status"><span id="syncIcon">●</span><span id="syncText">synced</span></span>
+</header>
+
+<div id="scrim"></div>
+<aside id="drawer">
+  <div class="brand"><b>MMBS</b><span id="shopName"></span><small id="userEmail"></small></div>
+  <nav id="nav">
+    <button data-v="sales" class="on">အရောင်း</button>
+    <button data-v="receipts">ဘောက်ချာများ</button>
+    <button data-v="items">ပစ္စည်းများ</button>
+    <button data-v="reports">အစီရင်ခံစာ</button>
+    <button data-v="settings">ဆက်တင်</button>
+  </nav>
+  <button class="ghost out" id="logout">ထွက်မည်</button>
+</aside>
+
+<main>
+  <section class="view on" id="v-sales">
+    <div class="catalog">
+      <div class="tools">
+        <input id="q" placeholder="ရှာရန် သို့မဟုတ် barcode scan ပြီး Enter" autocomplete="off">
+        <select id="catSel"></select>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <button class="cartBar" id="cartBar"></button>
+    </div>
+    <div class="ticket" id="ticket">
+      <div class="thead"><b>ဘောက်ချာ</b><span><button class="flat" id="closeT">ပိတ်</button><button class="flat" id="clearT">ရှင်းမည်</button></span></div>
+      <div class="tlist" id="tlist"></div>
+      <div class="tfoot">
+        <div class="sum" id="sumLines"></div>
+        <button class="flat" id="discBtn" style="padding:.2rem 0">+ လျှော့ငွေ</button>
+        <button class="charge" id="chargeBtn">ငွေရှင်းမည်</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-receipts"><div class="page" id="rlist"></div></section>
+
+  <section class="view" id="v-items">
+    <div class="page"><div class="card" id="ilist"></div></div>
+    <button class="fab" id="addItem" aria-label="ပစ္စည်းထည့်">+</button>
+  </section>
+
+  <section class="view" id="v-reports"><div class="page">
+    <div class="range"><input type="date" id="d1"><span>မှ</span><input type="date" id="d2"><button class="ghost" id="csv">CSV</button></div>
+    <div class="stats">
+      <div>ရောင်းရငွေ<b id="rAmt">0</b></div>
+      <div>ဘောက်ချာ<b id="rCnt">0</b></div>
+      <div>ပျမ်းမျှ<b id="rAvg">0</b></div>
+    </div>
+    <div class="day" style="padding-left:0">အရောင်းရဆုံး ပစ္စည်းများ</div>
+    <div class="card" id="rTop"></div>
+  </div></section>
+
+  <section class="view" id="v-settings"><div class="page" style="max-width:520px">
+    <p style="color:var(--mute);margin-bottom:1rem">ဒီဆက်တင်တွေကို ဒီစက်ထဲမှာပဲ သိမ်းပါတယ်။</p>
+    <div class="field"><label>ဆိုင်အမည် (ဘောက်ချာပေါ်တွင် ပေါ်မည်)</label><input id="cName"></div>
+    <div class="field"><label>အခွန် (%)</label><input id="cTax" type="number" min="0"></div>
+    <div class="field"><label>လက်ကျန်နည်းသည့် သတိပေးမှတ်</label><input id="cLow" type="number" min="0"></div>
+    <button id="cSave">သိမ်းမည်</button>
+
+    <hr style="margin:1.5rem 0;border:0;border-top:1px solid var(--line)">
+    <h3 style="font-size:1rem;margin-bottom:.6rem">Sync</h3>
+    <p style="color:var(--mute);font-size:.9rem;margin-bottom:.6rem">
+      <span id="pendingCount">0</span> ခု sync မလုပ်ရသေးပါ
+    </p>
+    <div style="display:flex;gap:.5rem">
+      <button id="syncNow">Sync အခုလုပ်</button>
+      <button class="ghost" id="syncFull">အားလုံး ပြန် sync</button>
+    </div>
+
+    <hr style="margin:1.5rem 0;border:0;border-top:1px solid var(--line)">
+    <h3 style="font-size:1rem;margin-bottom:.6rem">Backup / Restore</h3>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+      <button class="ghost" id="bk">Backup ထုတ်</button>
+      <button class="ghost" id="rs">Restore ထည့်</button>
+      <input type="file" id="rsFile" accept="application/json" style="display:none">
+    </div>
+  </div></section>
+</main>
+
+<dialog id="payD">
+  <h3>ငွေရှင်းမည်</h3>
+  <div class="big" id="payTotal"></div>
+  <div class="seg" id="seg"></div>
+  <div id="cashBox">
+    <input id="cash" type="number" min="0" placeholder="လက်ခံရငွေ">
+    <div class="quick" id="quick"></div>
+  </div>
+  <div class="acts"><button class="ghost" id="payCancel">မလုပ်တော့ပါ</button><button id="payOk">ငွေရှင်းမည်</button></div>
+</dialog>
+
+<dialog id="doneD">
+  <div style="text-align:center">
+    <div style="color:var(--mute)">ပြန်အမ်းငွေ</div>
+    <div class="big" id="doneChg"></div>
+    <div style="color:var(--mute)" id="doneTot"></div>
+  </div>
+  <div class="acts"><button class="ghost" id="doneRc">ဘောက်ချာ</button><button id="doneNew">အရောင်းအသစ်</button></div>
+</dialog>
+
+<dialog id="rcD">
+  <div class="rc" id="rc"></div>
+  <div class="acts noprint"><button class="ghost" id="rcClose">ပိတ်မည်</button><button id="rcPrint">ပရင့်ထုတ်မည်</button></div>
+</dialog>
+
+<dialog id="itemD">
+  <h3 id="itemTitle">ပစ္စည်းအသစ်</h3>
+  <div class="field"><label>အမည်</label><input id="iN"></div>
+  <div class="field"><label>ရောင်းဈေး (ကျပ်)</label><input id="iP" type="number" min="0"></div>
+  <div class="field"><label>လက်ကျန်</label><input id="iS" type="number" min="0"></div>
+  <div class="field"><label>အမျိုးအစား</label><input id="iC" list="catList"><datalist id="catList"></datalist></div>
+  <div class="field"><label>SKU / Barcode</label><input id="iK"></div>
+  <div class="field"><label>အရောင်</label><div class="colors" id="iCol"></div></div>
+  <div class="acts"><button class="red" id="iDel">ဖျက်မည်</button><button class="ghost" id="iCancel">မလုပ်တော့ပါ</button><button id="iSave">သိမ်းမည်</button></div>
+</dialog>
+
+<script>
+/* ══════════════════════════════════════════════
+   1. Utilities
+   ══════════════════════════════════════════════ */
+const $ = s => document.querySelector(s);
+const money = n => Math.round(n).toLocaleString('en-US') + ' ကျပ်';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fail = e => { console.error(e); alert('အမှား: ' + (e?.message || e)); };
+const COLORS = ['#e53935','#d81b60','#8e24aa','#5e35b1','#1e88e5','#00897b','#43a047','#f4511e','#6d4c41','#546e7a'];
+const METHODS = ['ငွေသား','KBZPay','WavePay','အခြား'];
+const hash = s => [...String(s)].reduce((a,c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const colorOf = p => p.color || COLORS[hash(p.id) % COLORS.length];
+const dayKey = d => { const x = new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+const nowISO = () => new Date().toISOString();
+const uuid = () => crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+  const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return v.toString(16);
+});
+
+/* ══════════════════════════════════════════════
+   2. Supabase
+   ══════════════════════════════════════════════ */
+const SB_URL = 'https://kbjjzdkpxvinlgwbhrzp.supabase.co';
+const SB_KEY = 'sb_publishable_O69tVRXhyHxNz8j5hl48Tg_WLzI6RLZ';
+const sb = supabase.createClient(SB_URL, SB_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'mmbs_auth' }
+});
+
+/* ══════════════════════════════════════════════
+   3. IndexedDB
+   ══════════════════════════════════════════════ */
+const DB_NAME = 'mmbs_hybrid', DB_VER = 1;
+let db;
+
+function openDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('products')) {
+        const s = d.createObjectStore('products', {keyPath:'id'});
+        s.createIndex('name','name'); s.createIndex('sku','sku');
+      }
+      if (!d.objectStoreNames.contains('sales')) {
+        const s = d.createObjectStore('sales', {keyPath:'id'});
+        s.createIndex('sold_at','sold_at'); s.createIndex('_synced','_synced');
+      }
+      if (!d.objectStoreNames.contains('meta')) {
+        d.createObjectStore('meta', {keyPath:'key'});
+      }
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+const idb = {
+  all(st){ return new Promise((res, rej) => { const r = db.transaction(st,'readonly').objectStore(st).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); }); },
+  get(st, k){ return new Promise((res, rej) => { const r = db.transaction(st,'readonly').objectStore(st).get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  put(st, o){ return new Promise((res, rej) => { const r = db.transaction(st,'readwrite').objectStore(st).put(o); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  del(st, k){ return new Promise((res, rej) => { const r = db.transaction(st,'readwrite').objectStore(st).delete(k); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
+  clear(st){ return new Promise((res, rej) => { const r = db.transaction(st,'readwrite').objectStore(st).clear(); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); },
+  getMeta(k){ return idb.get('meta', k).then(m => m?.value); },
+  setMeta(k, v){ return idb.put('meta', {key:k, value:v}); }
+};
+
+/* ══════════════════════════════════════════════
+   4. State
+   ══════════════════════════════════════════════ */
+let cfg = Object.assign({name:'MMBS Shop', tax:0, low:5}, (() => { try { return JSON.parse(localStorage.getItem('mmbs_cfg')) || {}; } catch { return {}; } })());
+let products = [], sales = [], rep = [];
+let cart = {}, disc = 0, method = METHODS[0], editId = null, pickColor = COLORS[0], lastSale = null, view = 'sales';
+let syncing = false, session = null;
+const byId = id => products.find(p => p.id == id);
+
+const normSale = s => ({...s, time: s.sold_at, no: s.no || String(s.id).slice(0,8), sub:+s.sub, disc:+s.disc, tax:+s.tax, total:+s.total, paid:+s.paid, change:+s.change});
+
+async function loadLocal(){
+  products = (await idb.all('products')).filter(p => !p._deleted);
+  products.sort((a,b) => (a.name||'').localeCompare(b.name||'', 'my'));
+  const rows = await idb.all('sales');
+  rows.sort((a,b) => new Date(b.sold_at) - new Date(a.sold_at));
+  sales = rows.slice(0, 200).map(normSale);
+}
+
+/* ══════════════════════════════════════════════
+   5. Sync Engine
+   ══════════════════════════════════════════════ */
+function updateSyncUI(state, msg){
+  const pill = $('#syncPill'), icon = $('#syncIcon'), text = $('#syncText');
+  pill.className = '';
+  if (state === 'syncing'){ pill.classList.add('syncing'); icon.textContent = '⟳'; text.textContent = 'syncing...'; }
+  else if (state === 'off'){ pill.classList.add('off'); icon.textContent = '⛔'; text.textContent = 'offline'; }
+  else if (state === 'err'){ pill.classList.add('err'); icon.textContent = '⚠'; text.textContent = 'sync error'; }
+  else { pill.classList.add('ok'); icon.textContent = '●'; text.textContent = msg || 'synced'; }
+  refreshPending();
+}
+async function refreshPending(){
+  if (!$('#pendingCount')) return;
+  const ps = (await idb.all('products')).filter(p => p._dirty).length;
+  const ss = (await idb.all('sales')).filter(s => !s._synced).length;
+  $('#pendingCount').textContent = ps + ss;
+}
+
+async function sync(){
+  if (syncing || !session) return;
+  if (!navigator.onLine){ updateSyncUI('off'); return; }
+  syncing = true;
+  updateSyncUI('syncing');
+  try {
+    /* ── PUSH dirty products ── */
+    const dirtyProducts = (await idb.all('products')).filter(p => p._dirty);
+    for (const p of dirtyProducts){
+      const payload = {
+        id: p.id, name: p.name, price: p.price, stock: p.stock,
+        cat: p.cat, sku: p.sku, color: p.color,
+        deleted: !!p._deleted, updated_at: p.updated_at || nowISO()
+      };
+      const { error } = await sb.from('products').upsert(payload);
+      if (error) throw error;
+      p._dirty = false;
+      await idb.put('products', p);
+    }
+
+    /* ── PUSH unsynced sales ── */
+    const unsyncedSales = (await idb.all('sales')).filter(s => !s._synced);
+    for (const s of unsyncedSales){
+      const payload = {
+        id: s.id, no: s.no, sold_at: s.sold_at, items: s.items,
+        method: s.method, sub: s.sub, disc: s.disc, tax: s.tax,
+        total: s.total, paid: s.paid, change: s.change
+      };
+      const { error } = await sb.from('sales').upsert(payload, { ignoreDuplicates: true });
+      if (error) throw error;
+      s._synced = true;
+      await idb.put('sales', s);
+    }
+
+    /* ── PULL products ── */
+    const lastPullP = (await idb.getMeta('last_pull_products')) || '1970-01-01T00:00:00Z';
+    const { data: remoteProducts, error: e1 } = await sb.from('products').select('*').gt('updated_at', lastPullP);
+    if (e1) throw e1;
+
+    const pendingSales = (await idb.all('sales')).filter(s => !s._synced);
+    const pendingQty = {};
+    for (const s of pendingSales) for (const i of (s.items||[])) pendingQty[i.id] = (pendingQty[i.id]||0) + i.qty;
+
+    for (const rp of remoteProducts){
+      const local = await idb.get('products', rp.id);
+      const pending = pendingQty[rp.id] || 0;
+      if (pending > 0){
+        if (local){
+          local.name = rp.name; local.price = rp.price; local.cat = rp.cat;
+          local.sku = rp.sku; local.color = rp.color;
+          local._dirty = false;
+          await idb.put('products', local);
+        }
+      } else {
+        await idb.put('products', { ...rp, _dirty: false });
+      }
+    }
+    await idb.setMeta('last_pull_products', nowISO());
+
+    /* ── PULL sales ── */
+    const lastPullS = (await idb.getMeta('last_pull_sales')) || '1970-01-01T00:00:00Z';
+    const { data: remoteSales, error: e2 } = await sb.from('sales').select('*').gt('sold_at', lastPullS).order('sold_at', {ascending:false}).limit(500);
+    if (e2) throw e2;
+    for (const rs of remoteSales){
+      const local = await idb.get('sales', rs.id);
+      if (!local) await idb.put('sales', { ...rs, _synced: true });
+    }
+    await idb.setMeta('last_pull_sales', nowISO());
+
+    await loadLocal();
+    go(view, true);
+    updateSyncUI('ok', 'synced');
+  } catch (e){
+    console.error('Sync failed:', e);
+    updateSyncUI('err');
+  } finally {
+    syncing = false;
+  }
+}
+
+async function fullResync(){
+  if (!session || !navigator.onLine) return alert('Internet/Session မရှိပါ');
+  if (!confirm('Server ကနေ data အားလုံး ပြန်ဆွဲမလား?')) return;
+  await idb.setMeta('last_pull_products', '1970-01-01T00:00:00Z');
+  await idb.setMeta('last_pull_sales', '1970-01-01T00:00:00Z');
+  await sync();
+  alert('Sync ပြီးပါပြီ');
+}
+
+/* ══════════════════════════════════════════════
+   6. Auth
+   ══════════════════════════════════════════════ */
+$('#lf').onsubmit = async e => {
+  e.preventDefault();
+  $('#loginErr').textContent = ''; $('#lBtn').disabled = true;
+
+  if (!navigator.onLine){
+    const cached = await idb.getMeta('cached_session');
+    if (cached){ $('#lBtn').disabled = false; return enter(cached); }
+    $('#lBtn').disabled = false;
+    return $('#loginErr').textContent = 'Internet မရှိပါ — ပထမဆုံးအကြိမ် online ဝင်ရပါမယ်';
+  }
+
+  const {data, error} = await sb.auth.signInWithPassword({email: $('#lEmail').value.trim(), password: $('#lPass').value});
+  $('#lBtn').disabled = false;
+  if (error) return $('#loginErr').textContent = 'ဝင်လို့မရပါ - အီးမေးလ်/စကားဝှက် စစ်ပါ';
+  $('#lPass').value = '';
+  await idb.setMeta('cached_session', {user: {email: data.session.user.email}, at: nowISO()});
+  enter({user: data.session.user});
+};
+
+async function enter(sess){
+  session = sess;
+  $('#login').classList.remove('on');
+  $('#userEmail').textContent = session.user.email;
+  $('#tiles').innerHTML = '<div class="empty">ဒေတာ ဖတ်နေပါသည်...</div>';
+  await loadLocal();
+  go('sales');
+  setTimeout(() => sync(), 300);
+}
+
+$('#logout').onclick = async () => {
+  if (!confirm('ထွက်မလား? (local data ရှိနေပါမယ်)')) return;
+  cart = {}; disc = 0; drawer(false);
+  await idb.del('meta', 'cached_session');
+  session = null;
+  try { await sb.auth.signOut(); } catch {}
+  $('#login').classList.add('on');
+};
+
+/* ══════════════════════════════════════════════
+   7. Navigation
+   ══════════════════════════════════════════════ */
+const titles = {sales:'အရောင်း', receipts:'ဘောက်ချာများ', items:'ပစ္စည်းများ', reports:'အစီရင်ခံစာ', settings:'ဆက်တင်'};
+function drawer(on){ $('#drawer').classList.toggle('on', on); $('#scrim').classList.toggle('on', on); }
+function go(v, silent){
+  view = v;
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  $('#nav').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('#title').textContent = titles[v]; drawer(false);
+  if (v==='sales') renderSales();
+  if (v==='receipts') renderReceipts();
+  if (v==='items') renderItems();
+  if (v==='reports') renderReports();
+  if (v==='settings') refreshPending();
+}
+$('#menuBtn').onclick = () => drawer(true);
+$('#scrim').onclick = () => drawer(false);
+$('#nav').querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.v));
+$('#syncPill').onclick = () => sync();
+
+/* ══════════════════════════════════════════════
+   8. Sales UI
+   ══════════════════════════════════════════════ */
+function renderSales(){
+  const cats = [...new Set(products.map(p => p.cat).filter(Boolean))];
+  const cur = $('#catSel').value || '';
+  $('#catSel').innerHTML = '<option value="">ပစ္စည်းအားလုံး</option>' + cats.map(c => `<option ${c===cur?'selected':''}>${esc(c)}</option>`).join('');
+  const k = $('#q').value.trim().toLowerCase(), c = $('#catSel').value;
+  const list = products.filter(p => (!c || p.cat === c) && ((p.name||'').toLowerCase().includes(k) || (p.sku||'').toLowerCase().includes(k)));
+  $('#tiles').innerHTML = list.map(p => `<button class="tile" data-id="${p.id}" style="background:${colorOf(p)}" ${p.stock<=0?'disabled':''}>
+    <span class="st">${p.stock}</span>${esc(p.name)}<small>${money(p.price)}</small></button>`).join('')
+    || '<div class="empty">ပစ္စည်း မတွေ့ပါ။ ☰ → ပစ္စည်းများ ထဲမှာ ထည့်ပါ</div>';
+  $('#tiles').querySelectorAll('.tile').forEach(b => b.onclick = () => add(b.dataset.id));
+  renderTicket();
+}
+function add(id){
+  const p = byId(id); if (!p) return;
+  if ((cart[id]||0) >= p.stock) return alert('လက်ကျန် မလောက်ပါ');
+  cart[id] = (cart[id]||0) + 1; renderTicket();
+}
+$('#q').oninput = renderSales;
+$('#catSel').onchange = renderSales;
+$('#q').onkeydown = e => {
+  if (e.key !== 'Enter') return;
+  const p = products.find(x => x.sku && x.sku.toLowerCase() === e.target.value.trim().toLowerCase());
+  if (p){ add(p.id); e.target.value = ''; renderSales(); }
+};
+function totals(){
+  const sub = Object.entries(cart).reduce((s,[id,q]) => s + (byId(id)?.price||0) * q, 0);
+  const d = Math.min(disc, sub), tax = (sub - d) * (cfg.tax / 100);
+  return {sub, disc:d, tax, total: sub - d + tax};
+}
+function renderTicket(){
+  const ids = Object.keys(cart).filter(id => byId(id));
+  $('#tlist').innerHTML = ids.map(id => { const p = byId(id); return `<div class="tr">
+    <div class="n">${esc(p.name)}<small>${money(p.price)}</small></div>
+    <div class="qty"><button data-m="${id}">−</button><span>${cart[id]}</span><button data-a="${id}">+</button></div>
+    <div class="amt">${money(p.price*cart[id])}</div></div>`; }).join('') || '<div class="empty">ပစ္စည်း ရွေးချယ်ပါ</div>';
+  $('#tlist').querySelectorAll('[data-a]').forEach(b => b.onclick = () => add(b.dataset.a));
+  $('#tlist').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { if (--cart[b.dataset.m] <= 0) delete cart[b.dataset.m]; renderTicket(); });
+  const t = totals(), n = ids.reduce((s,id) => s + cart[id], 0);
+  $('#sumLines').innerHTML = (t.disc ? `<span>လျှော့ငွေ</span><span>−${money(t.disc)}</span>` : '') + (t.tax ? `<span>အခွန် ${cfg.tax}%</span><span>${money(t.tax)}</span>` : '');
+  $('#sumLines').style.display = (t.disc || t.tax) ? 'flex' : 'none';
+  $('#sumLines').style.flexWrap = 'wrap';
+  $('#chargeBtn').textContent = 'ငွေရှင်းမည် ' + money(t.total);
+  $('#chargeBtn').disabled = !ids.length;
+  $('#cartBar').innerHTML = `<span>ဘောက်ချာ (${n})</span><b>${money(t.total)}</b>`;
+}
+$('#clearT').onclick = () => { cart = {}; disc = 0; renderTicket(); };
+$('#discBtn').onclick = () => { const v = prompt('လျှော့ငွေ (ကျပ်)', disc || ''); if (v !== null && v !== '' && !isNaN(v)) { disc = Math.max(0, +v); renderTicket(); } };
+$('#cartBar').onclick = () => $('#ticket').classList.add('on');
+$('#closeT').onclick = () => $('#ticket').classList.remove('on');
+
+/* ══════════════════════════════════════════════
+   9. Payment
+   ══════════════════════════════════════════════ */
+function renderPay(){
+  const t = totals();
+  $('#payTotal').textContent = money(t.total);
+  $('#seg').innerHTML = METHODS.map(m => `<button class="${m===method?'on':''}" data-m="${m}">${m}</button>`).join('');
+  $('#seg').querySelectorAll('button').forEach(b => b.onclick = () => { method = b.dataset.m; renderPay(); });
+  $('#cashBox').style.display = method === 'ငွေသား' ? '' : 'none';
+  const tot = Math.ceil(t.total), opts = [tot];
+  [1000, 5000, 10000, 50000].forEach(s => { const v = Math.ceil(tot / s) * s; if (!opts.includes(v)) opts.push(v); });
+  $('#quick').innerHTML = opts.slice(0,4).map((v,i) => `<button class="ghost" data-v="${v}">${i===0?'ပြည့်ပြည့်ဝဝ':v.toLocaleString('en-US')}</button>`).join('');
+  $('#quick').querySelectorAll('button').forEach(b => b.onclick = () => { $('#cash').value = b.dataset.v; });
+}
+$('#chargeBtn').onclick = () => { $('#cash').value = ''; renderPay(); $('#payD').showModal(); };
+$('#payCancel').onclick = () => $('#payD').close();
+$('#payOk').onclick = async () => {
+  const t = totals(), cash = method === 'ငွေသား';
+  const paid = (!cash || $('#cash').value === '') ? t.total : +$('#cash').value;
+  if (paid < t.total) return alert('လက်ခံရငွေ မလုံလောက်ပါ');
+  const ids = Object.keys(cart).filter(id => byId(id));
+  const items = ids.map(id => ({id, name: byId(id).name, price: byId(id).price, qty: cart[id]}));
+  $('#payOk').disabled = true;
+  try {
+    const saleId = uuid();
+    const sold_at = nowISO();
+    const no = dayKey(sold_at).replace(/-/g,'') + '-' + saleId.slice(0,6);
+    const sale = { id: saleId, no, sold_at, items, method, sub: t.sub, disc: t.disc, tax: t.tax, total: t.total, paid, change: Math.max(0, paid - t.total), _synced: false };
+
+    await idb.put('sales', sale);
+
+    for (const i of items){
+      const p = await idb.get('products', i.id);
+      if (p){ p.stock = Math.max(0, (+p.stock||0) - i.qty); await idb.put('products', p); }
+    }
+
+    lastSale = normSale(sale); lastSale.items = items;
+    cart = {}; disc = 0;
+    $('#payD').close(); $('#ticket').classList.remove('on');
+    $('#doneChg').textContent = money(sale.change);
+    $('#doneTot').textContent = 'စုစုပေါင်း ' + money(sale.total) + ' · ' + sale.method;
+    $('#doneD').showModal();
+
+    await loadLocal(); renderSales(); renderItems();
+    updateSyncUI(navigator.onLine ? 'ok' : 'off');
+    refreshPending();
+    setTimeout(() => sync(), 500);
+  } catch (e) { fail(e); }
+  $('#payOk').disabled = false;
+};
+$('#doneNew').onclick = () => $('#doneD').close();
+$('#doneRc').onclick = () => { $('#doneD').close(); showReceipt(lastSale); };
+
+/* ══════════════════════════════════════════════
+   10. Receipts
+   ══════════════════════════════════════════════ */
+function showReceipt(s){
+  if (!s) return;
+  $('#rc').innerHTML = `<div class="c"><b>${esc(cfg.name)}</b><br>#${esc(s.no||'')} · ${new Date(s.time).toLocaleString()}</div><hr>`
+    + s.items.map(i => `<div class="l"><span>${esc(i.name)} × ${i.qty}</span><span>${money(i.price*i.qty)}</span></div>`).join('') + '<hr>'
+    + (s.disc ? `<div class="l"><span>လျှော့ငွေ</span><span>−${money(s.disc)}</span></div>` : '')
+    + (s.tax ? `<div class="l"><span>အခွန်</span><span>${money(s.tax)}</span></div>` : '')
+    + `<div class="l"><b>စုစုပေါင်း</b><b>${money(s.total)}</b></div><div class="l"><span>${esc(s.method)}</span><span>${money(s.paid)}</span></div>`
+    + (s.method === 'ငွေသား' ? `<div class="l"><span>ပြန်အမ်း</span><span>${money(s.change)}</span></div>` : '')
+    + `<hr><div class="c">ကျေးဇူးတင်ပါသည်</div>`;
+  $('#rcD').showModal();
+}
+$('#rcClose').onclick = () => $('#rcD').close();
+$('#rcPrint').onclick = () => window.print();
+function renderReceipts(){
+  let html = '', last = '';
+  sales.forEach(s => {
+    const k = dayKey(s.time);
+    if (k !== last){ html += `<div class="day">${new Date(s.time).toLocaleDateString()}</div>`; last = k; }
+    const pend = !s._synced ? ' <span class="badge">pending</span>' : '';
+    html += `<button class="row" data-v="${s.id}"><div class="grow"><b>${money(s.total)}${pend}</b><small>#${esc(s.no)} · ${esc(s.method||'')} · ${s.items.map(i => esc(i.name)+'×'+i.qty).join(', ')}</small></div><small>${new Date(s.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</small></button>`;
+  });
+  $('#rlist').innerHTML = html || '<div class="empty">ဘောက်ချာ မရှိသေးပါ</div>';
+  $('#rlist').querySelectorAll('[data-v]').forEach(b => b.onclick = () => showReceipt(sales.find(s => s.id == b.dataset.v)));
+}
+
+/* ══════════════════════════════════════════════
+   11. Products
+   ══════════════════════════════════════════════ */
+function renderItems(){
+  $('#ilist').innerHTML = products.map(p => `<button class="row" data-e="${p.id}"><span class="dot" style="background:${colorOf(p)}"></span>
+    <div class="grow"><b>${esc(p.name)}</b><small>${esc(p.cat||'-')} · လက်ကျန် ${p.stock}${p.stock<=cfg.low?' ⚠':''}</small></div><b>${money(p.price)}</b></button>`).join('')
+    || '<div class="empty">ပစ္စည်း မရှိသေးပါ။ အောက်ညာထောင့်က + ကိုနှိပ်ပါ</div>';
+  $('#ilist').querySelectorAll('[data-e]').forEach(b => b.onclick = () => openItem(b.dataset.e));
+}
+function openItem(id){
+  const p = id ? byId(id) : null; editId = p ? p.id : null;
+  $('#itemTitle').textContent = p ? 'ပစ္စည်းပြင်ရန်' : 'ပစ္စည်းအသစ်';
+  $('#iN').value = p?.name || ''; $('#iP').value = p?.price ?? ''; $('#iS').value = p?.stock ?? ''; $('#iC').value = p?.cat || ''; $('#iK').value = p?.sku || '';
+  pickColor = p ? colorOf(p) : COLORS[products.length % COLORS.length];
+  $('#iDel').style.display = p ? '' : 'none';
+  $('#catList').innerHTML = [...new Set(products.map(x => x.cat).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join('');
+  drawColors(); $('#itemD').showModal();
+}
+function drawColors(){
+  $('#iCol').innerHTML = COLORS.map(c => `<i data-c="${c}" class="${c===pickColor?'on':''}" style="background:${c}"></i>`).join('');
+  $('#iCol').querySelectorAll('i').forEach(i => i.onclick = () => { pickColor = i.dataset.c; drawColors(); });
+}
+$('#addItem').onclick = () => openItem(null);
+$('#iCancel').onclick = () => $('#itemD').close();
+$('#iSave').onclick = async () => {
+  const name = $('#iN').value.trim(), sku = $('#iK').value.trim();
+  if (!name || $('#iP').value === '') return alert('အမည်နှင့် ဈေး ထည့်ပါ');
+  const data = {
+    id: editId || uuid(),
+    name, sku: sku || null,
+    price: +$('#iP').value,
+    stock: +$('#iS').value || 0,
+    cat: $('#iC').value.trim() || null,
+    color: pickColor,
+    updated_at: nowISO(),
+    _dirty: true,
+    _deleted: false
+  };
+  await idb.put('products', data);
+  $('#itemD').close();
+  await loadLocal(); renderItems(); renderSales();
+  updateSyncUI(navigator.onLine ? 'ok' : 'off');
+  refreshPending();
+  setTimeout(() => sync(), 500);
+};
+$('#iDel').onclick = async () => {
+  if (!confirm('ဖျက်မလား?')) return;
+  const p = await idb.get('products', editId);
+  if (p){
+    p._deleted = true; p._dirty = true; p.updated_at = nowISO();
+    await idb.put('products', p);
+  }
+  delete cart[editId]; $('#itemD').close();
+  await loadLocal(); renderItems(); renderSales();
+  updateSyncUI(navigator.onLine ? 'ok' : 'off');
+  refreshPending();
+  setTimeout(() => sync(), 500);
+};
+
+/* ══════════════════════════════════════════════
+   12. Reports
+   ══════════════════════════════════════════════ */
+async function renderReports(){
+  if (!$('#d1').value) $('#d1').value = $('#d2').value = dayKey(new Date());
+  const from = new Date($('#d1').value + 'T00:00:00').getTime();
+  const to   = new Date($('#d2').value + 'T23:59:59.999').getTime();
+  const rows = (await idb.all('sales')).filter(s => { const t = new Date(s.sold_at).getTime(); return t >= from && t <= to; });
+  rows.sort((a,b) => new Date(b.sold_at) - new Date(a.sold_at));
+  rep = rows.map(normSale);
+  const sum = rep.reduce((a,s) => a + s.total, 0);
+  $('#rAmt').textContent = money(sum);
+  $('#rCnt').textContent = rep.length;
+  $('#rAvg').textContent = money(rep.length ? sum / rep.length : 0);
+  const agg = {};
+  rep.forEach(s => (s.items||[]).forEach(i => { (agg[i.name] ||= {q:0, a:0}); agg[i.name].q += i.qty; agg[i.name].a += i.qty * i.price; }));
+  $('#rTop').innerHTML = Object.entries(agg).sort((a,b) => b[1].a - a[1].a).slice(0,8).map(([n,v]) =>
+    `<div class="row" style="cursor:default"><div class="grow"><b>${esc(n)}</b><small>${v.q} ခု</small></div><b>${money(v.a)}</b></div>`).join('')
+    || '<div class="empty">ဒီကာလအတွက် မှတ်တမ်း မရှိပါ</div>';
+}
+$('#d1').onchange = $('#d2').onchange = renderReports;
+const download = (name, text, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000); };
+$('#csv').onclick = () => {
+  const rows = [['ဘောက်ချာ','အချိန်','ပစ္စည်းများ','ငွေပေးနည်း','လျှော့','အခွန်','စုစုပေါင်း']]
+    .concat(rep.map(s => [s.no, new Date(s.time).toLocaleString(), (s.items||[]).map(i => i.name+'x'+i.qty).join(' | '), s.method, s.disc, s.tax, s.total]));
+  download('mmbs-sales.csv', '\ufeff' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(',')).join('\n'), 'text/csv');
+};
+
+/* ══════════════════════════════════════════════
+   13. Settings
+   ══════════════════════════════════════════════ */
+function applyCfg(){
+  $('#shopName').textContent = cfg.name;
+  $('#cName').value = cfg.name;
+  $('#cTax').value = cfg.tax;
+  $('#cLow').value = cfg.low;
+}
+$('#cSave').onclick = () => {
+  cfg = {name: $('#cName').value.trim() || 'MMBS Shop', tax: +$('#cTax').value || 0, low: +$('#cLow').value || 0};
+  localStorage.setItem('mmbs_cfg', JSON.stringify(cfg));
+  applyCfg(); renderTicket(); alert('သိမ်းပြီးပါပြီ');
+};
+$('#syncNow').onclick = () => sync();
+$('#syncFull').onclick = () => fullResync();
+$('#bk').onclick = async () => {
+  const allP = await idb.all('products');
+  const allS = await idb.all('sales');
+  const data = { exported: nowISO(), version: 2, cfg, products: allP, sales: allS };
+  download('mmbs-backup-' + dayKey(new Date()) + '.json', JSON.stringify(data, null, 2), 'application/json');
+};
+$('#rs').onclick = () => $('#rsFile').click();
+$('#rsFile').onchange = async e => {
+  const f = e.target.files?.[0]; e.target.value = '';
+  if (!f) return;
+  if (!confirm('လက်ရှိ ဒေတာတွေကို အစားထိုး ပြန်ထည့်မလား?')) return;
+  try {
+    const data = JSON.parse(await f.text());
+    await idb.clear('products'); await idb.clear('sales');
+    for (const p of (data.products||[])) await idb.put('products', {...p, _dirty: true});
+    for (const s of (data.sales||[])) await idb.put('sales', {...s, _synced: false});
+    if (data.cfg){ cfg = Object.assign(cfg, data.cfg); localStorage.setItem('mmbs_cfg', JSON.stringify(cfg)); }
+    await loadLocal(); applyCfg(); renderSales(); renderItems(); renderReceipts();
+    alert('Restore ပြီးပါပြီ (online ရရင် auto sync လုပ်ပါမယ်)');
+    setTimeout(() => sync(), 500);
+  } catch (err) { fail(err); }
+};
+
+/* ══════════════════════════════════════════════
+   14. Boot
+   ══════════════════════════════════════════════ */
+applyCfg();
+
+(async () => {
+  try {
+    db = await openDB();
+  } catch (e) {
+    alert('IndexedDB မဖွင့်နိုင်ပါ: ' + e.message);
+    return;
+  }
+
+  try {
+    const { data: { session: s } } = await sb.auth.getSession();
+    if (s){
+      session = {user: {email: s.user.email}};
+      await idb.setMeta('cached_session', {user: {email: s.user.email}, at: nowISO()});
+      return enter(session);
+    }
+  } catch (e) { console.warn('getSession failed', e); }
+
+  const cached = await idb.getMeta('cached_session');
+  if (cached && !navigator.onLine){
+    return enter(cached);
+  }
+
+  $('#login').classList.add('on');
+})();
+
+window.addEventListener('online', () => { updateSyncUI('ok'); sync(); });
+window.addEventListener('offline', () => updateSyncUI('off'));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && navigator.onLine) sync(); });
+
+setInterval(() => { if (navigator.onLine && session) sync(); }, 30000);
+
+updateSyncUI(navigator.onLine ? 'ok' : 'off');
+</script>
+</body>
+</html>
