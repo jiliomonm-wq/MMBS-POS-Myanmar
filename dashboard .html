@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MMBS Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --g:#10b981;--gd:#059669;--ink:#0f172a;--mute:#64748b;--line:#e2e8f0;
+  --bg:#f1f5f9;--card:#fff;--bad:#ef4444;--warn:#f59e0b;
+  --sh:0 1px 3px #0f172a0d, 0 1px 2px #0f172a0a;
+  --sh-lg:0 10px 25px -5px #0f172a1a, 0 8px 10px -6px #0f172a0f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans Myanmar",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;min-height:100dvh}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:10px;padding:.6rem 1rem;background:var(--ink);color:#fff;font-weight:600;transition:all .15s}
+button:hover{background:#1e293b;transform:translateY(-1px)}
+button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:var(--sh)}
+button.ghost:hover{background:var(--bg)}
+button.green{background:var(--g)}
+button.green:hover{background:var(--gd)}
+input,select{border:1px solid var(--line);border-radius:10px;padding:.55rem .8rem;background:#fff;outline:none;width:100%}
+input:focus,select:focus{border-color:var(--g);box-shadow:0 0 0 3px #10b9811a}
+
+/* ─── Layout ─── */
+.wrap{max-width:1400px;margin:0 auto;padding:1.2rem}
+header.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;box-shadow:var(--sh)}
+.top-inner{max-width:1400px;margin:0 auto;padding:.9rem 1.2rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:800;font-size:1.15rem}
+.brand .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#10b981,#0891b2);display:grid;place-items:center;color:#fff;font-size:1.1rem;box-shadow:var(--sh)}
+.brand small{display:block;font-weight:400;font-size:.75rem;color:var(--mute)}
+.controls{margin-left:auto;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.controls input[type=date]{width:auto}
+#status{font-size:.75rem;padding:.25rem .65rem;border-radius:99px;background:#f1f5f9;color:var(--mute);font-weight:600}
+#status.ok{background:#10b9811f;color:var(--gd)}
+#status.off{background:#ef44441f;color:#b91c1c}
+
+/* ─── KPI Cards ─── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1rem}
+.kpi{background:var(--card);border-radius:16px;padding:1.1rem 1.2rem;box-shadow:var(--sh);position:relative;overflow:hidden;transition:all .2s}
+.kpi:hover{box-shadow:var(--sh-lg);transform:translateY(-2px)}
+.kpi .lbl{color:var(--mute);font-size:.82rem;font-weight:500;margin-bottom:.35rem;display:flex;align-items:center;gap:.4rem}
+.kpi .val{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.kpi .sub{font-size:.75rem;color:var(--mute);margin-top:.3rem}
+.kpi .ic{position:absolute;top:1rem;right:1rem;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:1.1rem}
+.kpi.g .ic{background:#10b9811f;color:var(--gd)}
+.kpi.b .ic{background:#3b82f61f;color:#1d4ed8}
+.kpi.o .ic{background:#f59e0b1f;color:#b45309}
+.kpi.r .ic{background:#ef44441f;color:#b91c1c}
+.kpi.up .val::after{content:" ↑";color:var(--g);font-size:.9rem}
+
+/* ─── Cards ─── */
+.row2{display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1rem}
+.row3{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.card{background:var(--card);border-radius:16px;padding:1.2rem;box-shadow:var(--sh)}
+.card h3{font-size:1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.card h3 .dot{width:8px;height:8px;border-radius:50%;background:var(--g)}
+.card h3 .more{margin-left:auto;font-size:.75rem;color:var(--mute);font-weight:400}
+.chart-box{position:relative;height:260px}
+
+/* ─── Lists ─── */
+.list{display:flex;flex-direction:column}
+.list .it{display:flex;align-items:center;gap:.8rem;padding:.65rem 0;border-bottom:1px solid var(--line)}
+.list .it:last-child{border-bottom:0}
+.list .it .rank{width:24px;height:24px;border-radius:6px;background:var(--bg);display:grid;place-items:center;font-size:.75rem;font-weight:700;color:var(--mute);flex-shrink:0}
+.list .it .rank.top{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff}
+.list .it .nm{flex:1;min-width:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .it .qt{color:var(--mute);font-size:.85rem}
+.list .it .am{font-weight:700;text-align:right;font-size:.92rem}
+.bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:.2rem}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#10b981,#0891b2);border-radius:99px}
+
+/* ─── Recent Sales ─── */
+.sale-item{display:flex;align-items:center;gap:.8rem;padding:.7rem 0;border-bottom:1px solid var(--line)}
+.sale-item:last-child{border:0}
+.sale-item .avatar{width:36px;height:36px;border-radius:10px;background:#10b9811f;color:var(--gd);display:grid;place-items:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.sale-item .info{flex:1;min-width:0}
+.sale-item .info b{font-size:.92rem}
+.sale-item .info small{display:block;color:var(--mute);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sale-item .amt{font-weight:700;text-align:right}
+.sale-item .amt small{display:block;color:var(--mute);font-size:.72rem;font-weight:400}
+
+/* ─── Low Stock ─── */
+.stock-item{display:flex;align-items:center;gap:.7rem;padding:.6rem 0;border-bottom:1px solid var(--line)}
+.stock-item:last-child{border:0}
+.stock-item .pill{padding:.15rem .55rem;border-radius:99px;font-size:.72rem;font-weight:700;background:#ef44441f;color:#b91c1c}
+.stock-item .pill.mid{background:#f59e0b1f;color:#b45309}
+.stock-item .nm{flex:1;font-weight:500}
+
+.empty{color:var(--mute);text-align:center;padding:2rem;font-size:.9rem}
+
+/* ─── Mobile ─── */
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .row2,.row3{grid-template-columns:1fr}
+  .kpi .val{font-size:1.3rem}
+  .chart-box{height:220px}
+}
+@media(max-width:480px){
+  .wrap{padding:.8rem}
+  .kpi{padding:.9rem}
+  .kpi .val{font-size:1.15rem}
+  .controls input[type=date]{font-size:.85rem;padding:.45rem .55rem}
+  .brand{font-size:1rem}
+  .brand small{font-size:.7rem}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <span class="logo">M</span>
+      <div>
+        <div id="shopName">MMBS Dashboard</div>
+        <small id="subtitle">Owner Dashboard</small>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="date" id="d1">
+      <span style="color:var(--mute);font-size:.85rem">မှ</span>
+      <input type="date" id="d2">
+      <button class="ghost" id="refresh" title="Refresh">⟳</button>
+      <button class="ghost" id="export" title="CSV">CSV</button>
+      <span id="status">● offline</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- KPI Row -->
+  <div class="kpi-grid">
+    <div class="kpi g">
+      <div class="ic">💰</div>
+      <div class="lbl">ရောင်းရငွေ</div>
+      <div class="val" id="kSales">0</div>
+      <div class="sub" id="kSalesRange">—</div>
+    </div>
+    <div class="kpi b">
+      <div class="ic">🧾</div>
+      <div class="lbl">ဘောက်ချာ</div>
+      <div class="val" id="kCount">0</div>
+      <div class="sub">စုစုပေါင်း အရေအတွက်</div>
+    </div>
+    <div class="kpi o">
+      <div class="ic">📊</div>
+      <div class="lbl">ပျမ်းမျှ</div>
+      <div class="val" id="kAvg">0</div>
+      <div class="sub">တစ်ခုချင်း ပျမ်းမျှ</div>
+    </div>
+    <div class="kpi r">
+      <div class="ic">⚠</div>
+      <div class="lbl">လက်ကျန်နည်း</div>
+      <div class="val" id="kLow">0</div>
+      <div class="sub">ပစ္စည်း မျိုးစုံ</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row2">
+    <div class="card">
+      <h3><span class="dot"></span>အရောင်း လမ်းကြောင်း <span class="more" id="trendRange">—</span></h3>
+      <div class="chart-box"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span>ငွေပေးချေနည်း</h3>
+      <div class="chart-box"><canvas id="payChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Products + Recent -->
+  <div class="row2">
+    <div class="card">
+      <h3><span class="dot"></span>အရောင်းရဆုံး ပစ္စည်းများ <span class="more">Top 10</span></h3>
+      <div class="list" id="topList"></div>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span>နောက်ဆုံး အရောင်းများ</h3>
+      <div id="recentList"></div>
+    </div>
+  </div>
+
+  <!-- Low Stock -->
+  <div class="card">
+    <h3><span class="dot" style="background:var(--bad)"></span>လက်ကျန် နည်းနေတဲ့ ပစ္စည်းများ <span class="more" id="lowRange">—</span></h3>
+    <div id="lowList"></div>
+  </div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════ */
+const $ = s => document.querySelector(s);
+const money = n => Math.round(n).toLocaleString('en-US') + ' ကျပ်';
+const moneyShort = n => {
+  n = Math.round(n);
+  if (n >= 10000000) return (n/10000000).toFixed(1) + ' ကုဋေ';
+  if (n >= 100000) return (n/100000).toFixed(1) + ' သိန်း';
+  if (n >= 1000) return (n/1000).toFixed(0) + ' ထောင်';
+  return n.toString();
+};
+const dayKey = d => { const x = new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+const COLORS = ['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+
+/* ─── Supabase ─── */
+const SB_URL = 'https://kbjjzdkpxvinlgwbhrzp.supabase.co';
+const SB_KEY = 'sb_publishable_O69tVRXhyHxNz8j5hl48Tg_WLzI6RLZ';
+const sb = supabase.createClient(SB_URL, SB_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'mmbs_auth' }
+});
+
+/* ─── Config ─── */
+let cfg = Object.assign({name:'MMBS Shop', low:5}, (() => { try { return JSON.parse(localStorage.getItem('mmbs_cfg')) || {}; } catch { return {}; } })());
+$('#shopName').textContent = cfg.name + ' · Dashboard';
+
+/* ─── State ─── */
+let sales = [], products = [];
+let trendChart = null, payChart = null;
+
+/* ─── Load data ─── */
+async function loadData(){
+  setStatus('loading');
+
+  // Sales from server for the date range
+  const from = new Date($('#d1').value + 'T00:00:00').toISOString();
+  const to   = new Date($('#d2').value + 'T23:59:59.999').toISOString();
+
+  let salesData = [], prodData = [];
+
+  try {
+    const r1 = await sb.from('sales').select('*').gte('sold_at', from).lte('sold_at', to).order('sold_at', {ascending:false}).limit(5000);
+    if (r1.error) throw r1.error;
+    salesData = r1.data || [];
+
+    const r2 = await sb.from('products').select('*').limit(2000);
+    if (r2.error) throw r2.error;
+    prodData = r2.data || [];
+
+    setStatus('ok');
+  } catch (e) {
+    console.error(e);
+    // Fallback: try IndexedDB
+    try {
+      const db = await openIDB();
+      const localSales = await idbAll(db, 'sales');
+      const localProds = await idbAll(db, 'products');
+      const t1 = new Date($('#d1').value + 'T00:00:00').getTime();
+      const t2 = new Date($('#d2').value + 'T23:59:59.999').getTime();
+      salesData = localSales.filter(s => { const t = new Date(s.sold_at).getTime(); return t>=t1 && t<=t2; });
+      prodData = localProds.filter(p => !p._deleted);
+      setStatus('off');
+    } catch (err) {
+      setStatus('off');
+      return;
+    }
+  }
+
+  sales = salesData.map(s => ({
+    ...s,
+    time: s.sold_at,
+    sub:+s.sub, disc:+s.disc, tax:+s.tax, total:+s.total, paid:+s.paid, change:+s.change
+  }));
+  products = prodData.map(p => ({...p, price:+p.price, stock:+p.stock}));
+
+  renderAll();
+}
+
+function openIDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('mmbs_hybrid', 1);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbAll(db, store){
+  return new Promise((res, rej) => {
+    const r = db.transaction(store,'readonly').objectStore(store).getAll();
+    r.onsuccess = () => res(r.result || []);
+    r.onerror = () => rej(r.error);
+  });
+}
+
+function setStatus(s){
+  const el = $('#status');
+  el.className = '';
+  if (s === 'ok'){ el.classList.add('ok'); el.textContent = '● online'; }
+  else if (s === 'off'){ el.classList.add('off'); el.textContent = '● offline'; }
+  else { el.textContent = '⟳ loading...'; }
+}
+
+/* ─── Render ─── */
+function renderAll(){
+  renderKPIs();
+  renderTrend();
+  renderPayment();
+  renderTop();
+  renderRecent();
+  renderLowStock();
+}
+
+function renderKPIs(){
+  const total = sales.reduce((a,s) => a + s.total, 0);
+  const cnt = sales.length;
+  const avg = cnt ? total/cnt : 0;
+  const lowCount = products.filter(p => p.stock <= cfg.low).length;
+
+  $('#kSales').textContent = money(total);
+  $('#kCount').textContent = cnt.toLocaleString('en-US');
+  $('#kAvg').textContent = money(avg);
+  $('#kLow').textContent = lowCount;
+
+  const d1 = $('#d1').value, d2 = $('#d2').value;
+  const label = d1 === d2 ? new Date(d1).toLocaleDateString() : new Date(d1).toLocaleDateString() + ' – ' + new Date(d2).toLocaleDateString();
+  $('#kSalesRange').textContent = label;
+  $('#trendRange').textContent = label;
+  $('#lowRange').textContent = 'သတိပေးမှတ် ' + cfg.low + ' အောက်';
+}
+
+function renderTrend(){
+  // Group sales by day
+  const days = {};
+  sales.forEach(s => {
+    const k = dayKey(s.time);
+    days[k] = (days[k] || 0) + s.total;
+  });
+
+  // Generate day range from d1 to d2
+  const labels = [], values = [];
+  const start = new Date($('#d1').value + 'T00:00:00');
+  const end = new Date($('#d2').value + 'T00:00:00');
+  const cursor = new Date(start);
+  while (cursor <= end){
+    const k = dayKey(cursor);
+    labels.push(cursor.getDate() + '/' + (cursor.getMonth()+1));
+    values.push(days[k] || 0);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const ctx = $('#trendChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 260);
+  grad.addColorStop(0, 'rgba(16,185,129,0.25)');
+  grad.addColorStop(1, 'rgba(16,185,129,0)');
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'အရောင်း (ကျပ်)',
+        data: values,
+        borderColor: '#10b981',
+        backgroundColor: grad,
+        borderWidth: 2.5,
+        tension: 0.35,
+        fill: true,
+        pointRadius: labels.length > 15 ? 0 : 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#10b981',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          padding: 12,
+          titleFont: { size: 13, weight: '600' },
+          bodyFont: { size: 12 },
+          callbacks: { label: ctx => money(ctx.parsed.y) }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#e2e8f0', drawBorder: false },
+          ticks: { color: '#64748b', font: { size: 11 }, callback: v => moneyShort(v) }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: '#64748b', font: { size: 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }
+        }
+      }
+    }
+  });
+}
+
+function renderPayment(){
+  const methods = {};
+  sales.forEach(s => { methods[s.method || 'အခြား'] = (methods[s.method || 'အခြား'] || 0) + s.total; });
+  const labels = Object.keys(methods);
+  const values = Object.values(methods);
+
+  if (!labels.length){
+    $('#payChart').parentElement.innerHTML = '<div class="empty">ဒီကာလအတွက် အရောင်း မရှိပါ</div>';
+    return;
+  }
+
+  const ctx = $('#payChart').getContext('2d');
+  if (payChart) payChart.destroy();
+  payChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: COLORS,
+        borderWidth: 3,
+        borderColor: '#fff',
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { padding: 12, font: { size: 12 }, usePointStyle: true, pointStyle: 'circle' }
+        },
+        tooltip: {
+          backgroundColor: '#0f172a', padding: 12,
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+              const pct = ((ctx.parsed/total)*100).toFixed(1);
+              return ctx.label + ': ' + money(ctx.parsed) + ' (' + pct + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTop(){
+  const agg = {};
+  sales.forEach(s => (s.items || []).forEach(i => {
+    if (!agg[i.name]) agg[i.name] = { q:0, a:0 };
+    agg[i.name].q += i.qty;
+    agg[i.name].a += i.qty * i.price;
+  }));
+
+  const top = Object.entries(agg).sort((a,b) => b[1].a - a[1].a).slice(0, 10);
+  if (!top.length){
+    $('#topList').innerHTML = '<div class="empty">ဒီကာလအတွက် အရောင်း မရှိပါ</div>';
+    return;
+  }
+  const max = top[0][1].a;
+  $('#topList').innerHTML = top.map(([n,v], i) => `
+    <div class="it">
+      <span class="rank ${i<3?'top':''}">${i+1}</span>
+      <div style="flex:1;min-width:0">
+        <div class="nm">${esc(n)}</div>
+        <div class="bar"><i style="width:${(v.a/max*100).toFixed(0)}%"></i></div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="am">${money(v.a)}</div>
+        <div class="qt">${v.q} ခု</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRecent(){
+  const recent = sales.slice(0, 10);
+  if (!recent.length){
+    $('#recentList').innerHTML = '<div class="empty">ဘောက်ချာ မရှိပါ</div>';
+    return;
+  }
+  $('#recentList').innerHTML = recent.map(s => {
+    const time = new Date(s.time);
+    const timeStr = time.toLocaleDateString() + ' · ' + time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const itemCount = (s.items || []).reduce((a,i) => a + i.qty, 0);
+    const initials = (s.method || '?').slice(0,2);
+    return `
+      <div class="sale-item">
+        <div class="avatar">${esc(initials)}</div>
+        <div class="info">
+          <b>#${esc(s.no || s.id.slice(0,8))}</b>
+          <small>${timeStr} · ${itemCount} ခု</small>
+        </div>
+        <div class="amt">
+          ${money(s.total)}
+          <small>${esc(s.method || '')}</small>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderLowStock(){
+  const low = products.filter(p => p.stock <= cfg.low).sort((a,b) => a.stock - b.stock).slice(0, 20);
+  if (!low.length){
+    $('#lowList').innerHTML = '<div class="empty">🎉 လက်ကျန်နည်း ပစ္စည်း မရှိပါ</div>';
+    return;
+  }
+  $('#lowList').innerHTML = low.map(p => {
+    const isCritical = p.stock <= 1;
+    return `
+      <div class="stock-item">
+        <span class="pill ${isCritical?'':'mid'}">${p.stock}</span>
+        <span class="nm">${esc(p.name)}</span>
+        <span style="color:var(--mute);font-size:.82rem">${esc(p.cat || '-')}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ─── Events ─── */
+$('#d1').onchange = $('#d2').onchange = loadData;
+$('#refresh').onclick = loadData;
+$('#export').onclick = () => {
+  const rows = [['ဘောက်ချာ','အချိန်','ပစ္စည်းများ','ငွေပေးနည်း','လျှော့','အခွန်','စုစုပေါင်း']]
+    .concat(sales.map(s => [
+      s.no || s.id,
+      new Date(s.time).toLocaleString(),
+      (s.items||[]).map(i => i.name+'x'+i.qty).join(' | '),
+      s.method, s.disc, s.tax, s.total
+    ]));
+  const csv = '\ufeff' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'mmbs-dashboard-' + dayKey(new Date()) + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+/* ─── Boot ─── */
+(async () => {
+  // Default: last 30 days
+  const today = new Date();
+  const past = new Date();
+  past.setDate(past.getDate() - 29);
+  $('#d1').value = dayKey(past);
+  $('#d2').value = dayKey(today);
+
+  // Try restore session (not strictly required for dashboard read)
+  try { await sb.auth.getSession(); } catch {}
+
+  await loadData();
+
+  // Auto refresh every 60s
+  setInterval(() => { if (navigator.onLine) loadData(); }, 60000);
+})();
+</script>
+</body>
+</html>
