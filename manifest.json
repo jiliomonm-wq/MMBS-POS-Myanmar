@@ -1,7 +1,7 @@
 {
   "name": "MMBS POS",
   "short_name": "MMBS",
-  "description": "MMBS Point of Sale System",
+  "description": "MMBS Point of Sale & Dashboard",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -27,6 +27,20 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "အရောင်း (POS)",
+      "short_name": "POS",
+      "url": "./index.html",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Owner Dashboard",
+      "short_name": "Dashboard",
+      "url": "./dashboard.html",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
