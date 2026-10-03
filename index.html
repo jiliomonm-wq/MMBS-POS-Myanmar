@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MMBS POS (Hybrid)</title>
+<title>MMBS POS</title>
+
+<!-- ═══ PWA Meta ═══ -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e9e5b">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MMBS POS">
+
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -22,7 +31,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
 input,select{border:1px solid var(--line);border-radius:6px;padding:.5rem .7rem;background:#fff;width:100%;outline:none}
 input:focus,select:focus{border-color:var(--g)}
 :focus-visible{outline:2px solid var(--g);outline-offset:2px}
-.top{height:56px;background:var(--g);color:#fff;display:flex;align-items:center;gap:.4rem;padding:0 .6rem;flex-shrink:0}
+.top{height:56px;background:var(--g);color:#fff;display:flex;align-items:center;gap:.4rem;padding:0 .6rem;flex-shrink:0;padding-top:env(safe-area-inset-top)}
 .top h1{font-size:1.15rem;font-weight:600;margin-left:.3rem}
 .top .ic{background:transparent;font-size:1.4rem;padding:.2rem .7rem}
 .top .ic:hover{background:#ffffff22}
@@ -33,7 +42,7 @@ input:focus,select:focus{border-color:var(--g)}
 #syncPill.err{background:#ef5350aa}
 #scrim{position:fixed;inset:0;background:#0006;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
 #scrim.on{opacity:1;pointer-events:auto}
-#drawer{position:fixed;top:0;bottom:0;left:0;width:270px;background:#fff;z-index:40;transform:translateX(-100%);transition:transform .22s;display:flex;flex-direction:column}
+#drawer{position:fixed;top:0;bottom:0;left:0;width:270px;background:#fff;z-index:40;transform:translateX(-100%);transition:transform .22s;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 #drawer.on{transform:none}
 #drawer .brand{background:var(--g);color:#fff;padding:1.2rem 1.2rem 1rem}
 #drawer .brand b{font-size:1.5rem;font-weight:800;letter-spacing:.04em;display:block}
@@ -70,11 +79,11 @@ main{flex:1;min-height:0;position:relative}
 .qty button:hover{background:var(--line)}
 .qty span{min-width:1.3rem;text-align:center;font-weight:600}
 .tr .amt{min-width:78px;text-align:right}
-.tfoot{padding:.7rem 1rem 1rem;border-top:1px solid var(--line)}
+.tfoot{padding:.7rem 1rem calc(1rem + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
 .sum{display:flex;justify-content:space-between;color:var(--mute);font-size:.9rem}
 .charge{width:100%;margin-top:.6rem;padding:.9rem;font-size:1.15rem;border-radius:8px}
 .cartBar{display:none}
-.page{flex:1;overflow:auto;max-width:820px;margin:0 auto;width:100%;padding:1rem}
+.page{flex:1;overflow:auto;max-width:820px;margin:0 auto;width:100%;padding:1rem;padding-bottom:calc(1rem + env(safe-area-inset-bottom))}
 .row{display:flex;align-items:center;gap:.8rem;background:#fff;border-bottom:1px solid var(--line);padding:.7rem 1rem;cursor:pointer;text-align:left;width:100%;color:var(--ink);border-radius:0;font-weight:400}
 .row:hover{background:#fafafa}
 .row .grow{flex:1;min-width:0}
@@ -82,7 +91,7 @@ main{flex:1;min-height:0;position:relative}
 .dot{width:36px;height:36px;border-radius:8px;flex-shrink:0}
 .card{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .day{color:var(--mute);font-size:.85rem;font-weight:600;padding:.8rem 1rem .3rem}
-.fab{position:absolute;right:1.2rem;bottom:1.2rem;width:56px;height:56px;border-radius:50%;font-size:1.8rem;padding:0;box-shadow:0 3px 8px #0003}
+.fab{position:absolute;right:1.2rem;bottom:calc(1.2rem + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;font-size:1.8rem;padding:0;box-shadow:0 3px 8px #0003}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:1rem 0}
 .stats div{background:#fff;border:1px solid var(--line);border-radius:8px;padding:.8rem 1rem;color:var(--mute);font-size:.9rem}
 .stats b{display:block;font-size:1.3rem;color:var(--ink)}
@@ -118,9 +127,9 @@ dialog h3{font-size:1.1rem;margin-bottom:.8rem}
 .badge{display:inline-block;background:#2e9e5b22;color:var(--gd);border-radius:99px;padding:0 .55rem;font-size:.75rem;font-weight:600;margin-left:.3rem}
 @media(max-width:820px){
   #v-sales{flex-direction:column}
-  .ticket{position:fixed;left:0;right:0;bottom:0;width:auto;height:78dvh;border-radius:14px 14px 0 0;box-shadow:0 -4px 14px #0003;transform:translateY(100%);transition:transform .22s;z-index:20}
+  .ticket{position:fixed;left:0;right:0;bottom:0;width:auto;height:78dvh;border-radius:14px 14px 0 0;box-shadow:0 -4px 14px #0003;transform:translateY(100%);transition:transform .22s;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
   .ticket.on{transform:none}
-  .cartBar{display:flex;justify-content:space-between;align-items:center;width:100%;border-radius:0;padding:1rem 1.2rem;font-size:1.05rem}
+  .cartBar{display:flex;justify-content:space-between;align-items:center;width:100%;border-radius:0;padding:1rem 1.2rem;font-size:1.05rem;padding-bottom:calc(1rem + env(safe-area-inset-bottom))}
   .stats{grid-template-columns:1fr}
 }
 @page{size:80mm auto;margin:0}
@@ -376,7 +385,6 @@ async function sync(){
   syncing = true;
   updateSyncUI('syncing');
   try {
-    /* ── PUSH dirty products ── */
     const dirtyProducts = (await idb.all('products')).filter(p => p._dirty);
     for (const p of dirtyProducts){
       const payload = {
@@ -390,7 +398,6 @@ async function sync(){
       await idb.put('products', p);
     }
 
-    /* ── PUSH unsynced sales ── */
     const unsyncedSales = (await idb.all('sales')).filter(s => !s._synced);
     for (const s of unsyncedSales){
       const payload = {
@@ -404,7 +411,6 @@ async function sync(){
       await idb.put('sales', s);
     }
 
-    /* ── PULL products ── */
     const lastPullP = (await idb.getMeta('last_pull_products')) || '1970-01-01T00:00:00Z';
     const { data: remoteProducts, error: e1 } = await sb.from('products').select('*').gt('updated_at', lastPullP);
     if (e1) throw e1;
@@ -429,7 +435,6 @@ async function sync(){
     }
     await idb.setMeta('last_pull_products', nowISO());
 
-    /* ── PULL sales ── */
     const lastPullS = (await idb.getMeta('last_pull_sales')) || '1970-01-01T00:00:00Z';
     const { data: remoteSales, error: e2 } = await sb.from('sales').select('*').gt('sold_at', lastPullS).order('sold_at', {ascending:false}).limit(500);
     if (e2) throw e2;
@@ -782,7 +787,18 @@ $('#rsFile').onchange = async e => {
 };
 
 /* ══════════════════════════════════════════════
-   14. Boot
+   14. Service Worker Registration (PWA)
+   ══════════════════════════════════════════════ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(r => console.log('SW registered:', r.scope))
+      .catch(e => console.warn('SW failed:', e));
+  });
+}
+
+/* ══════════════════════════════════════════════
+   15. Boot
    ══════════════════════════════════════════════ */
 applyCfg();
 
