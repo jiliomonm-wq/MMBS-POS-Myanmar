@@ -40,6 +40,9 @@ header.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;t
 #status{font-size:.75rem;padding:.25rem .65rem;border-radius:99px;background:#f1f5f9;color:var(--mute);font-weight:600}
 #status.ok{background:#10b9811f;color:var(--gd)}
 #status.off{background:#ef44441f;color:#b91c1c}
+#backBtn{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:var(--sh);padding:.55rem .9rem;font-weight:600;display:inline-flex;align-items:center;gap:.4rem;text-decoration:none;border-radius:10px;transition:all .15s;font-size:.9rem}
+#backBtn:hover{background:var(--bg);transform:translateX(-2px);color:var(--ink)}
+#backBtn .arw{font-size:1.1rem;line-height:1}
 
 /* ─── KPI Cards ─── */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1rem}
@@ -53,11 +56,9 @@ header.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;t
 .kpi.b .ic{background:#3b82f61f;color:#1d4ed8}
 .kpi.o .ic{background:#f59e0b1f;color:#b45309}
 .kpi.r .ic{background:#ef44441f;color:#b91c1c}
-.kpi.up .val::after{content:" ↑";color:var(--g);font-size:.9rem}
 
 /* ─── Cards ─── */
 .row2{display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1rem}
-.row3{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
 .card{background:var(--card);border-radius:16px;padding:1.2rem;box-shadow:var(--sh)}
 .card h3{font-size:1rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
 .card h3 .dot{width:8px;height:8px;border-radius:50%;background:var(--g)}
@@ -98,7 +99,7 @@ header.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;t
 /* ─── Mobile ─── */
 @media(max-width:900px){
   .kpi-grid{grid-template-columns:repeat(2,1fr)}
-  .row2,.row3{grid-template-columns:1fr}
+  .row2{grid-template-columns:1fr}
   .kpi .val{font-size:1.3rem}
   .chart-box{height:220px}
 }
@@ -109,6 +110,7 @@ header.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;t
   .controls input[type=date]{font-size:.85rem;padding:.45rem .55rem}
   .brand{font-size:1rem}
   .brand small{font-size:.7rem}
+  #backBtn{padding:.45rem .7rem;font-size:.85rem}
 }
 </style>
 </head>
@@ -124,6 +126,9 @@ header.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;t
       </div>
     </div>
     <div class="controls">
+      <a id="backBtn" href="index.html">
+        <span class="arw">←</span> POS
+      </a>
       <input type="date" id="d1">
       <span style="color:var(--mute);font-size:.85rem">မှ</span>
       <input type="date" id="d2">
@@ -208,6 +213,7 @@ const moneyShort = n => {
   return n.toString();
 };
 const dayKey = d => { const x = new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const COLORS = ['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
 
 /* ─── Supabase ─── */
@@ -229,7 +235,6 @@ let trendChart = null, payChart = null;
 async function loadData(){
   setStatus('loading');
 
-  // Sales from server for the date range
   const from = new Date($('#d1').value + 'T00:00:00').toISOString();
   const to   = new Date($('#d2').value + 'T23:59:59.999').toISOString();
 
@@ -247,7 +252,6 @@ async function loadData(){
     setStatus('ok');
   } catch (e) {
     console.error(e);
-    // Fallback: try IndexedDB
     try {
       const db = await openIDB();
       const localSales = await idbAll(db, 'sales');
@@ -325,14 +329,12 @@ function renderKPIs(){
 }
 
 function renderTrend(){
-  // Group sales by day
   const days = {};
   sales.forEach(s => {
     const k = dayKey(s.time);
     days[k] = (days[k] || 0) + s.total;
   });
 
-  // Generate day range from d1 to d2
   const labels = [], values = [];
   const start = new Date($('#d1').value + 'T00:00:00');
   const end = new Date($('#d2').value + 'T00:00:00');
@@ -490,7 +492,7 @@ function renderRecent(){
       <div class="sale-item">
         <div class="avatar">${esc(initials)}</div>
         <div class="info">
-          <b>#${esc(s.no || s.id.slice(0,8))}</b>
+          <b>#${esc(s.no || String(s.id).slice(0,8))}</b>
           <small>${timeStr} · ${itemCount} ခု</small>
         </div>
         <div class="amt">
@@ -520,8 +522,6 @@ function renderLowStock(){
   }).join('');
 }
 
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
 /* ─── Events ─── */
 $('#d1').onchange = $('#d2').onchange = loadData;
 $('#refresh').onclick = loadData;
@@ -543,19 +543,16 @@ $('#export').onclick = () => {
 
 /* ─── Boot ─── */
 (async () => {
-  // Default: last 30 days
   const today = new Date();
   const past = new Date();
   past.setDate(past.getDate() - 29);
   $('#d1').value = dayKey(past);
   $('#d2').value = dayKey(today);
 
-  // Try restore session (not strictly required for dashboard read)
   try { await sb.auth.getSession(); } catch {}
 
   await loadData();
 
-  // Auto refresh every 60s
   setInterval(() => { if (navigator.onLine) loadData(); }, 60000);
 })();
 </script>
